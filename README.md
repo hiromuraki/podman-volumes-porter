@@ -92,9 +92,9 @@ pvp restore mysql-data --dry-run
 
 1. 将 `*.service` 与 `*.timer` 文件复制到 `~/.config/systemd/user`
 2. 执行 `systemd --user daemon-reload`
-3. 执行 `systemd --user enable podman-volumes-porter.timer`
+3. 执行 `systemd --user enable --now podman-volumes-porter.timer`
 
-也可以使用 `systemd --user start --now podman-volumes-porter` 立即启动一次备份。
+也可以使用 `systemd --user start podman-volumes-porter` 立即启动一次备份。
 
 或者，也可以通过 `crontab` 来实现。添加如下配置：
 
