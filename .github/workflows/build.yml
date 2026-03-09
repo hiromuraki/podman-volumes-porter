@@ -10,7 +10,7 @@ on:
 
 permissions:
     contents: write # 允许 Action 创建 Release 并上传文件
-    
+
 jobs:
     build:
         name: Build PVP for Linux
@@ -53,3 +53,5 @@ jobs:
               with:
                   files: pvm-linux-amd64
                   generate_release_notes: true # 自动根据 commit 生成更新日志
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
