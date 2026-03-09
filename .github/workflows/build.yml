@@ -1,4 +1,4 @@
-name: Build and Release PVM
+name: Build and Release
 
 on:
     push:
@@ -41,8 +41,8 @@ jobs:
             - name: Upload Artifact
               uses: actions/upload-artifact@v4
               with:
-                  name: pvm-linux-amd64
-                  path: pvm-linux-amd64
+                  name: pvp-linux-amd64
+                  path: pvp-linux-amd64
                   retention-days: 7
 
             # 步骤 6：如果你推了一个 v1.0.0 的 Tag，自动创建 GitHub Release 并上传文件！
