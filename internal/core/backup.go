@@ -46,7 +46,7 @@ func filterVolumeNames(allVolumeNames []string, namePattern string) []string {
 }
 
 func (e Engine) backupVolume(ctx context.Context, volumeName string, allowOverride bool) error {
-	if !VolumeExists(ctx, volumeName) {
+	if !podman.volumeExists(ctx, volumeName) {
 		return fmt.Errorf("卷 %s 不存在", volumeName)
 	}
 
@@ -86,7 +86,7 @@ func (e Engine) backupVolume(ctx context.Context, volumeName string, allowOverri
 }
 
 func (e Engine) BackupAction(ctx context.Context, volumeNamePattern string, allowOverride bool, dryRun bool) {
-	allVolumeNames := GetAllVolumeNames()
+	allVolumeNames := podman.getAllVolumeNames()
 	matchedVolumeNames := filterVolumeNames(allVolumeNames, volumeNamePattern)
 
 	if len(matchedVolumeNames) == 0 {
@@ -101,7 +101,8 @@ func (e Engine) BackupAction(ctx context.Context, volumeNamePattern string, allo
 		}
 
 		e.Logger.Info(fmt.Sprintf("备份卷：%s", v))
-		if err := e.backupVolume(ctx, v, allowOverride); err != nil {
+		err := e.backupVolume(ctx, v, allowOverride)
+		if err != nil {
 			e.Logger.Error(fmt.Sprintf("卷 %s 备份时发生错误: %v", v, err))
 		}
 

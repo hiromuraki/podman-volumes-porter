@@ -3,8 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/exec"
 	"regexp"
 	"sort"
 	"strings"
@@ -46,92 +44,79 @@ func (e Engine) restoreVolume(ctx context.Context, volumeName string, key string
 	}
 	defer zstdReader.Close()
 
-	if VolumeExists(ctx, volumeName) {
-		confirm, err := e.UI.Confirm(fmt.Sprintf("卷 %s 已存在，是否覆盖并重新导入？", volumeName))
-		if err != nil {
-			return err
-		}
-
-		if !confirm {
-			e.Logger.Info("操作已取消")
-			return nil
-		}
-
-		e.Logger.Info(fmt.Sprintf("正在清理旧卷 [%s]...", volumeName))
-		_ = exec.CommandContext(ctx, "podman", "volume", "rm", "-f", volumeName).Run()
-	}
-
-	e.Logger.Info(fmt.Sprintf("正在创建卷 [%s]...", volumeName))
-	if err := exec.CommandContext(ctx, "podman", "volume", "create", volumeName).Run(); err != nil {
-		return fmt.Errorf("无法创建卷 %s", volumeName)
-	}
-
-	e.Logger.Info(fmt.Sprintf("正在注入数据到卷 [%s]...", volumeName))
-	cmd := exec.CommandContext(ctx, "podman", "volume", "import", volumeName, "-")
-	cmd.Stdin = zstdReader
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("卷恢复失败: %w", err)
-	}
-
-	e.Logger.Success("卷恢复成功")
-	return nil
+	e.Logger.Info(fmt.Sprintf("正在恢复卷 [%s]...", volumeName))
+	return podman.importVolume(ctx, volumeName, zstdReader)
 }
 
-func (e Engine) RestoreAction(ctx context.Context, volumeName string, restoreFrom string, dryRun bool) error {
-	findBestMatchedKey := func() (string, error) {
-		keyPrefix := restoreFrom
-
-		// 如果 keyPrefix 是完整的 .tar.zstd 路径，直接原样返回
-		if strings.HasSuffix(keyPrefix, ".tar.zstd") {
-			return keyPrefix, nil
-		}
-
-		// 否则，获取所有存储桶中所有符合前缀的键，并选出最新的一版作为目标对象
-		searchKey := volumeName + "/" + keyPrefix
-		objKeys, err := e.Storage.ListObjectKeysWithPrefix(ctx, Config.BackupBucketName, searchKey)
-		if err != nil {
-			return "", err
-		}
-
-		if len(objKeys) == 0 {
-			return "", fmt.Errorf("在远程仓库中未找到卷 %s 的任何备份 (searchKey=%s)", volumeName, searchKey)
-		}
-
-		// 进行过滤与逆序排序，以保证按时间逆序排列
-		filteredKeys := filterObjectKeys(objKeys, volumeName)
-		sortObjectKeys(filteredKeys)
-
-		// 未指定备份前缀，默认选择符合条件的最新一版
-		if keyPrefix == "" {
-			e.Logger.Warning("未指定备份点，自动选择最新备份: " + filteredKeys[0])
-			return filteredKeys[0], nil
-		}
-
-		// 如果 prefix 非空，过滤出匹配前缀中最新的一份
-		for _, objKey := range filteredKeys {
-			if strings.HasPrefix(objKey, searchKey) {
-				return objKey, nil
-			}
-		}
-
-		return "", fmt.Errorf("未找到符合条件 %s 的备份文件(searchKey=%s)", keyPrefix, searchKey)
+func (e Engine) findBestMatchedKey(ctx context.Context, volumeName string, keyPrefix string) (string, error) {
+	// 如果 keyPrefix 是完整的 .tar.zstd 路径，直接原样返回
+	if strings.HasSuffix(keyPrefix, ".tar.zstd") {
+		return keyPrefix, nil
 	}
 
-	targetKey, err := findBestMatchedKey()
+	// 否则，获取所有存储桶中所有符合前缀的键，并选出最新的一版作为目标对象
+	searchKey := volumeName + "/" + keyPrefix
+	objKeys, err := e.Storage.ListObjectKeysWithPrefix(ctx, Config.BackupBucketName, searchKey)
 	if err != nil {
-		return err
+		return "", err
+	}
+
+	if len(objKeys) == 0 {
+		return "", fmt.Errorf("在远程仓库中未找到卷 %s 的任何备份 (searchKey=%s)", volumeName, searchKey)
+	}
+
+	// 进行过滤与逆序排序，以保证按时间逆序排列
+	filteredKeys := filterObjectKeys(objKeys, volumeName)
+	sortObjectKeys(filteredKeys)
+
+	// 未指定备份前缀，默认选择符合条件的最新一版
+	if keyPrefix == "" {
+		e.Logger.Warning("未指定备份点，自动选择最新备份: " + filteredKeys[0])
+		return filteredKeys[0], nil
+	}
+
+	// 如果 prefix 非空，过滤出匹配前缀中最新的一份
+	for _, objKey := range filteredKeys {
+		if strings.HasPrefix(objKey, searchKey) {
+			return objKey, nil
+		}
+	}
+
+	return "", fmt.Errorf("未找到符合条件 %s 的备份文件(searchKey=%s)", keyPrefix, searchKey)
+}
+
+func (e Engine) RestoreAction(ctx context.Context, volumeName string, restoreFrom string, dryRun bool) {
+	targetKey, err := e.findBestMatchedKey(ctx, volumeName, restoreFrom)
+	if err != nil {
+		e.Logger.Error(fmt.Sprintf("未找到符合条件的备份"))
+		return
 	}
 
 	if dryRun {
 		e.Logger.Info(fmt.Sprintf("[DryRun] 将恢复卷：%s (源文件=%s)", volumeName, targetKey))
-		return nil
+		return
 	}
 
-	if err := e.restoreVolume(ctx, volumeName, targetKey); err != nil {
-		e.Logger.Error(fmt.Sprintf("恢复失败: %v", err))
+	if podman.volumeExists(ctx, volumeName) {
+		confirm, err := e.UI.Confirm(fmt.Sprintf("卷 %s 已存在，是否覆盖并重新导入？", volumeName))
+		if err != nil {
+			e.Logger.Error(err.Error())
+		}
+
+		if !confirm {
+			e.Logger.Info("操作已取消")
+			return
+		}
+
+		e.Logger.Info(fmt.Sprintf("正在移除旧卷 %s...", volumeName))
+		podman.deleteVolume(ctx, volumeName)
 	}
 
-	return nil
+	err = e.restoreVolume(ctx, volumeName, targetKey)
+	if err != nil {
+		e.Logger.Error(fmt.Sprintf("卷 %s 恢复失败: %s", volumeName, err.Error()))
+		return
+	}
+
+	e.Logger.Success(fmt.Sprintf("卷 %s 恢复成功", volumeName))
 }
