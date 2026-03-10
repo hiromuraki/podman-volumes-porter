@@ -8,7 +8,7 @@ Type=oneshot
 EnvironmentFile=%h/.env
 
 WorkingDirectory=%h/
-ExecStart=/bin/pvp backup '*'
+ExecStart=/bin/podman-volumes-porter backup '*'
 
 Restart=on-failure
 RestartSec=3600
