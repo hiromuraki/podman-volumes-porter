@@ -85,8 +85,8 @@ podman-volumes-porter restore mysql-data --dry-run
 
 Podman Volumes Porter 非常适合配合定时任务系统实现自动化无人值守备份。推荐使用 `systemd`，可参考以下文件实现：
 
-* [podman-volumes-porter.service](./systemd/podman-volumes-porter.service)
-* [podman-volumes-porter.timer](./systemd/podman-volumes-porter.timer)
+* [podman-volumes-porter.service](./deployments/systemd/podman-volumes-porter.service)
+* [podman-volumes-porter.timer](./deployments/systemd/podman-volumes-porter.timer)
 
 部署方法：
 
