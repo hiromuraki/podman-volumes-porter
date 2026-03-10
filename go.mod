@@ -1,6 +1,6 @@
 module podman-volumes-porter
 
-go 1.24
+go 1.26
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.41.3
@@ -12,6 +12,7 @@ require (
 
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/klauspost/compress v1.18.4 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 )
 

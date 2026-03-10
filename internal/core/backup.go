@@ -1,13 +1,14 @@
 package core
 
 import (
-	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
 	"os/exec"
 	"path"
 	"time"
+
+	"github.com/klauspost/compress/zstd"
 )
 
 func getBackupKey(volumeName string, now time.Time) string {
@@ -26,7 +27,7 @@ func getBackupKey(volumeName string, now time.Time) string {
 
 	timestamp := now.Format("20060102T150405Z")
 
-	return fmt.Sprintf("%s/%s_%s.tar.gz", volumeName, timestamp, backupType)
+	return fmt.Sprintf("%s/%s_%s.tar.zstd", volumeName, timestamp, backupType)
 }
 
 func filterVolumeNames(allVolumeNames []string, namePattern string) []string {
@@ -49,7 +50,7 @@ func GetMatchedVolumeNames(namePattern string) []string {
 	return filterVolumeNames(allVolumeNames, namePattern)
 }
 
-func (e Engine) BackupVolume(ctx context.Context, volumeName string, forceOverride bool) error {
+func (e Engine) BackupVolume(ctx context.Context, volumeName string, allowOverride bool) error {
 	if !VolumeExists(ctx, volumeName) {
 		return fmt.Errorf("卷 %s 不存在", volumeName)
 	}
@@ -60,20 +61,20 @@ func (e Engine) BackupVolume(ctx context.Context, volumeName string, forceOverri
 	if err != nil {
 		return fmt.Errorf("无法检测文件 [%s]:%s 存在性", Config.BackupBucketName, key)
 	}
-	if keyExists && !forceOverride {
+	if keyExists && !allowOverride {
 		return fmt.Errorf("文件 [%s]:%s 已存在", Config.BackupBucketName, key)
 	}
 
 	// 内存管道逻辑
 	pr, pw := io.Pipe()
 	go func() {
-		gw := gzip.NewWriter(pw)
+		zw, _ := zstd.NewWriter(pw)
 
 		cmd := exec.CommandContext(ctx, "podman", "volume", "export", volumeName)
-		cmd.Stdout = gw
+		cmd.Stdout = zw
 
 		err := cmd.Run()
-		gw.Close()
+		zw.Close()
 
 		if err != nil {
 			pw.CloseWithError(err)
