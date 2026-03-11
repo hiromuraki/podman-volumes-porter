@@ -39,17 +39,18 @@ func (s *S3Storage) getS3Client(ctx context.Context) (*s3.Client, error) {
 	return s3Client, nil
 }
 
-func (s *S3Storage) IsAvailable(ctx context.Context) bool {
+func (s *S3Storage) IsAvailable(ctx context.Context) (bool, error) {
 	client, err := s.getS3Client(ctx)
 	if err != nil {
-		return false
+		return false, err
 	}
 
+	print(Config.BackupBucketName)
 	_, err = client.HeadBucket(ctx, &s3.HeadBucketInput{
 		Bucket: aws.String(Config.BackupBucketName),
 	})
 
-	return err == nil
+	return err == nil, err
 }
 
 func (s *S3Storage) ListObjectKeysWithPrefix(ctx context.Context, bucketName string, prefix string) ([]string, error) {

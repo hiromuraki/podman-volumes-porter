@@ -80,8 +80,9 @@ func setupEngine() {
 	}
 
 	// 连通性预检
-	if !engine.Storage.IsAvailable(context.Background()) {
-		fmt.Println("❌ 错误: 无法连接至 S3 存储，请检查网络设置")
+	isS3Available, err := engine.Storage.IsAvailable(context.Background())
+	if !isS3Available {
+		fmt.Printf("❌ 错误: 无法连接至 S3 存储. %s", err.Error())
 		os.Exit(1)
 	}
 }

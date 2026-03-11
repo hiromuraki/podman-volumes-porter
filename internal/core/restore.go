@@ -88,7 +88,7 @@ func (e Engine) findBestMatchedKey(ctx context.Context, volumeName string, keyPr
 func (e Engine) RestoreAction(ctx context.Context, volumeName string, restoreFrom string, dryRun bool) {
 	targetKey, err := e.findBestMatchedKey(ctx, volumeName, restoreFrom)
 	if err != nil {
-		e.Logger.Error(fmt.Sprintf("未找到符合条件的备份"))
+		e.Logger.Error("未找到符合条件的备份")
 		return
 	}
 
