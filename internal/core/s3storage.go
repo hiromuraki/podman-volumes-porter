@@ -35,7 +35,7 @@ func (s *S3Storage) getS3Client(ctx context.Context) (*s3.Client, error) {
 
 	s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.BaseEndpoint = aws.String(s.EndpointUrl)
-		o.UsePathStyle = true
+		o.UsePathStyle = s.UsePathStyle
 	})
 
 	return s3Client, nil
@@ -47,7 +47,6 @@ func (s *S3Storage) IsAvailable(ctx context.Context) (bool, error) {
 		return false, err
 	}
 
-	print(Config.BackupBucketName)
 	_, err = client.HeadBucket(ctx, &s3.HeadBucketInput{
 		Bucket: aws.String(Config.BackupBucketName),
 	})
