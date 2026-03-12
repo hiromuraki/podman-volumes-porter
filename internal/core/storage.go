@@ -143,6 +143,7 @@ func (s S3Storage) UploadStream(ctx context.Context, bucket string, key string, 
 		Key:               aws.String(key),
 		Body:              reader,
 		ChecksumAlgorithm: tmtypes.ChecksumAlgorithmSha256,
+		StorageClass:      tmtypes.StorageClass(types.ObjectStorageClassStandardIa),
 	})
 
 	return err
