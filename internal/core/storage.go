@@ -16,12 +16,12 @@ import (
 )
 
 type S3Storage struct {
-	EndpointUrl      string
-	AccessKey        string
-	SecretKey        string
-	BackupBucketName string
-	UsePathStyle     bool
-	Region           string
+	EndpointUrl  string
+	AccessKey    string
+	SecretKey    string
+	BucketName   string
+	Region       string
+	UsePathStyle bool
 }
 
 func (s *S3Storage) getS3Client(ctx context.Context) (*s3.Client, error) {
@@ -49,13 +49,13 @@ func (s *S3Storage) IsAvailable(ctx context.Context) (bool, error) {
 	}
 
 	_, err = client.HeadBucket(ctx, &s3.HeadBucketInput{
-		Bucket: aws.String(Config.BackupBucketName),
+		Bucket: aws.String(s.BucketName),
 	})
 
 	return err == nil, err
 }
 
-func (s *S3Storage) ListObjectKeysWithPrefix(ctx context.Context, bucketName string, prefix string) ([]string, error) {
+func (s *S3Storage) ListObjectKeysWithPrefix(ctx context.Context, prefix string) ([]string, error) {
 	s3Client, err := s.getS3Client(ctx)
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func (s *S3Storage) ListObjectKeysWithPrefix(ctx context.Context, bucketName str
 	var objectKeys []string
 
 	paginator := s3.NewListObjectsV2Paginator(s3Client, &s3.ListObjectsV2Input{
-		Bucket: aws.String(bucketName),
+		Bucket: aws.String(s.BucketName),
 		Prefix: aws.String(prefix),
 	})
 
@@ -85,14 +85,14 @@ func (s *S3Storage) ListObjectKeysWithPrefix(ctx context.Context, bucketName str
 
 }
 
-func (s *S3Storage) ObjectExists(ctx context.Context, bucket string, key string) (bool, error) {
+func (s *S3Storage) ObjectExists(ctx context.Context, key string) (bool, error) {
 	s3Client, err := s.getS3Client(ctx)
 	if err != nil {
 		return false, err
 	}
 
 	_, err = s3Client.HeadObject(ctx, &s3.HeadObjectInput{
-		Bucket: aws.String(bucket),
+		Bucket: aws.String(s.BucketName),
 		Key:    aws.String(key),
 	})
 	if err == nil {
@@ -110,7 +110,7 @@ func (s *S3Storage) ObjectExists(ctx context.Context, bucket string, key string)
 	return false, err
 }
 
-func (s S3Storage) GetObjectStream(ctx context.Context, bucket string, key string) (io.Reader, error) {
+func (s S3Storage) GetObjectStream(ctx context.Context, key string) (io.Reader, error) {
 	s3Client, err := s.getS3Client(ctx)
 	if err != nil {
 		return nil, err
@@ -119,7 +119,7 @@ func (s S3Storage) GetObjectStream(ctx context.Context, bucket string, key strin
 	// 2. 发起 GetObject 请求，拿到 S3 的响应体 (它是一个自带网络流的 io.ReadCloser)
 	// 注意：这里用的是原生 s3.Client，因为 transfermanager.Downloader 默认是并发切块下载，必须配合支持 WriteAt 的文件句柄使用，不适合纯流式管道。
 	resp, err := s3Client.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(bucket),
+		Bucket: aws.String(s.BucketName),
 		Key:    aws.String(key),
 	})
 	if err != nil {
@@ -129,7 +129,7 @@ func (s S3Storage) GetObjectStream(ctx context.Context, bucket string, key strin
 	return resp.Body, nil
 }
 
-func (s S3Storage) UploadStream(ctx context.Context, bucket string, key string, reader io.Reader) error {
+func (s S3Storage) UploadStream(ctx context.Context, key string, reader io.Reader) error {
 	s3Client, err := s.getS3Client(ctx)
 	if err != nil {
 		return err
@@ -140,7 +140,7 @@ func (s S3Storage) UploadStream(ctx context.Context, bucket string, key string, 
 
 	// 5. 执行上传
 	_, err = tm.UploadObject(ctx, &transfermanager.UploadObjectInput{
-		Bucket:            aws.String(bucket),
+		Bucket:            aws.String(s.BucketName),
 		Key:               aws.String(key),
 		Body:              reader,
 		ChecksumAlgorithm: tmtypes.ChecksumAlgorithmSha256,

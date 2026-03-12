@@ -32,8 +32,8 @@ func sortObjectKeys(objKeys []string) {
 }
 
 func (e Engine) restoreVolume(ctx context.Context, volumeName string, key string) error {
-	e.Logger.Info(fmt.Sprintf("正在从 s3://%s/%s 获取数据...", Config.BackupBucketName, key))
-	objReader, err := e.Storage.GetObjectStream(ctx, Config.BackupBucketName, key)
+	e.Logger.Info(fmt.Sprintf("正在从 s3://%s/%s 获取数据...", e.Storage.BucketName, key))
+	objReader, err := e.Storage.GetObjectStream(ctx, key)
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func (e Engine) findBestMatchedKey(ctx context.Context, volumeName string, keyPr
 
 	// 否则，获取所有存储桶中所有符合前缀的键，并选出最新的一版作为目标对象
 	searchKey := volumeName + "/" + keyPrefix
-	objKeys, err := e.Storage.ListObjectKeysWithPrefix(ctx, Config.BackupBucketName, searchKey)
+	objKeys, err := e.Storage.ListObjectKeysWithPrefix(ctx, searchKey)
 	if err != nil {
 		return "", err
 	}

@@ -42,8 +42,7 @@ func GetBoolEnv(key string, fallback bool) bool {
 }
 
 type AppConfig struct {
-	BackupBucketName string
-	TaskTimeout      int
+	TaskTimeout int
 }
 
 var Config *AppConfig

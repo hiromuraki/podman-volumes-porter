@@ -52,12 +52,12 @@ func (e Engine) backupVolume(ctx context.Context, volumeName string, allowOverri
 
 	key := getBackupKey(volumeName, time.Now().UTC())
 
-	keyExists, err := e.Storage.ObjectExists(ctx, Config.BackupBucketName, key)
+	keyExists, err := e.Storage.ObjectExists(ctx, key)
 	if err != nil {
-		return fmt.Errorf("无法检测文件 [%s]:%s 存在性", Config.BackupBucketName, key)
+		return fmt.Errorf("无法检测文件 [%s]:%s 存在性", e.Storage.BucketName, key)
 	}
 	if keyExists && !allowOverride {
-		return fmt.Errorf("文件 [%s]:%s 已存在", Config.BackupBucketName, key)
+		return fmt.Errorf("文件 [%s]:%s 已存在", e.Storage.BucketName, key)
 	}
 
 	// 内存管道逻辑
@@ -80,7 +80,7 @@ func (e Engine) backupVolume(ctx context.Context, volumeName string, allowOverri
 		}
 	}()
 
-	if err := e.Storage.UploadStream(ctx, Config.BackupBucketName, key, pr); err != nil {
+	if err := e.Storage.UploadStream(ctx, key, pr); err != nil {
 		return err
 	}
 
