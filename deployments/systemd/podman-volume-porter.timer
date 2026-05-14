@@ -6,6 +6,7 @@ Description=Run Podman Backup Daily at 4 AM
 OnCalendar=*-*-* 04:00:00
 # 如果电脑在 4 点关机了，开机后立刻补全执行一次
 Persistent=true
+RandomizedDelaySec=10m
 
 [Install]
 WantedBy=timers.target
