@@ -114,7 +114,9 @@ EnvironmentFile=%h/.env.podman-volume-porter
 WorkingDirectory=%h/
 ExecStart=/bin/podman-volume-porter backup '*'
 Restart=on-failure
-RestartSec=3600
+RestartSec=30s
+StartLimitIntervalSec=300
+StartLimitBurst=10
 EOF
 
 # 3. 创建 Timer 文件
